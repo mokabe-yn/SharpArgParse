@@ -35,5 +35,33 @@ namespace SharpArgParse
         {
             throw new NotImplementedException();
         }
+        public static ParseResult<TOptions> Parse<TOptions>(string[] args)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    readonly struct ParseResult<TOptions>
+    {
+        public TOptions Options { get; }
+        public string[] RestArgs { get; }
+        public ParseResult(TOptions options, string[] restArgs)
+        {
+            Options = options;
+            RestArgs = restArgs;
+        }
+        public readonly void Deconstruct(out TOptions options, out string[] restArgs)
+        {
+            options = Options;
+            restArgs = RestArgs;
+        }
+    }
+}
+namespace SharpArgParse.Attributes
+{
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+    internal class AliasAttribute : Attribute
+    {
+        public string Alias { get; }
+        public AliasAttribute(string alias) => Alias = alias;
     }
 }
