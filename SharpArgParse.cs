@@ -26,19 +26,47 @@
 
 using System;
 using System.Collections.Generic;
+//using ;
 
 namespace SharpArgParse
 {
+    internal static class ArgParse<TOptions> where TOptions : new()
+    {
+        public static System.Reflection.PropertyInfo[] GetPropertiesInfo()
+        {
+            return typeof(TOptions).GetProperties(
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.SetProperty |
+                System.Reflection.BindingFlags.GetProperty |
+                0);
+        }
+        private static void Update(ref TOptions options)
+        {
+
+        }
+        private static void CreateActionTable()
+        {
+
+        }
+        public static ParseResult<TOptions> Parse(
+            string[] args, bool allowLater = true)
+        {
+            var infos = GetPropertiesInfo();
+            TOptions ret = new();
+
+
+
+            throw new NotImplementedException();
+        }
+    }
     internal static class ArgParse
     {
-        public static IEnumerable<string> Core(string[] args)
-        {
-            throw new NotImplementedException();
-        }
-        public static ParseResult<TOptions> Parse<TOptions>(string[] args)
-        {
-            throw new NotImplementedException();
-        }
+        // alias ArgParse<TOptions>
+        public static ParseResult<TOptions> Parse<TOptions>(
+            string[] args, bool allowLater = true)
+            where TOptions : new() => 
+            ArgParse<TOptions>.Parse(args, allowLater);
     }
     readonly struct ParseResult<TOptions>
     {
@@ -55,13 +83,17 @@ namespace SharpArgParse
             restArgs = RestArgs;
         }
     }
-}
-namespace SharpArgParse.Attributes
-{
+
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
     internal class AliasAttribute : Attribute
     {
         public string Alias { get; }
         public AliasAttribute(string alias) => Alias = alias;
+    }
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+    internal class ShortAliasAttribute : Attribute
+    {
+        public char Alias { get; }
+        public ShortAliasAttribute(char alias) => Alias = alias;
     }
 }
