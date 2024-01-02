@@ -6,15 +6,15 @@ class ShortOptions
 {
     class Target
     {
-        [ShortAlias('a')]
+        [Alias('a')]
         public bool Alice { get; set; }
-        [ShortAlias('b')]
+        [Alias('b')]
         public bool Bob { get; set; }
-        [ShortAlias('c')]
+        [Alias('c')]
         public bool Charley { get; set; }
-        [ShortAlias('r')]
+        [Alias('r')]
         public string? Recieve { get; set; }
-        [ShortAlias('s')]
+        [Alias('s')]
         public string[] SomeRecieve { get; set; } = [];
     }
     [TestMethod]

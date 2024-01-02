@@ -25,6 +25,11 @@
 // Note: use only C#7.3 for .NET Framework 4.7.2 only environs.
 
 //#define ARGPARCE_EXPORT
+//#define ARGPARCE_BACKPORT_NET40
+//#define ARGPARCE_BACKPORT_NET45
+//#define ARGPARCE_BACKPORT_SHARP7_3
+
+#pragma warning disable CA1510
 
 using System;
 using System.Collections.Generic;
@@ -89,36 +94,37 @@ namespace SharpArgParse
     internal class AliasAttribute : Attribute
     {
         public string Alias { get; }
-        public AliasAttribute(string alias) => Alias = alias;
-    }
-    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    internal class ShortAliasAttribute : Attribute
-    {
         public char ShortAlias { get; }
-        public ShortAliasAttribute(char shortAlias) => ShortAlias = shortAlias;
-    }
-    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    internal class ValueAliasAttribute : Attribute
-    {
-        public string Alias { get; }
-        public object Value { get; }
-        public ValueAliasAttribute(string alias, object value)
+        public bool IsShortAlias { get; }
+
+        public AliasAttribute(string alias)
         {
             if (alias is null) throw new ArgumentNullException(nameof(alias));
-            if (value is null) throw new ArgumentNullException(nameof(value));
             Alias = alias;
-            Value = value;
+            ShortAlias = '\0';
+            IsShortAlias = false;
+        }
+        public AliasAttribute(char shortAlias)
+        {
+            Alias = "";
+            ShortAlias = shortAlias;
+            IsShortAlias = true;
         }
     }
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    internal class ShortValueAliasAttribute : Attribute
+    internal class ValueAliasAttribute : AliasAttribute
     {
-        public char ShortAlias { get; }
         public object Value { get; }
-        public ShortValueAliasAttribute(char shortAlias, object value)
+        public ValueAliasAttribute(string alias, object value) 
+            : base(alias)
         {
             if (value is null) throw new ArgumentNullException(nameof(value));
-            ShortAlias = shortAlias;
+            Value = value;
+        }
+        public ValueAliasAttribute(char shortAlias, object value) 
+            : base(shortAlias)
+        {
+            if (value is null) throw new ArgumentNullException(nameof(value));
             Value = value;
         }
     }

@@ -14,9 +14,9 @@ class EnumValue
         // * --argument=a
         // * --argument-is-a
         // * -a
-        [ShortValueAlias('a', E.A)]
-        [ValueAlias("--a", E.A)]
-        [ValueAlias("--mw", E.MultiWord)]
+        [ValueAlias('a', E.A)]
+        [ValueAlias("a", E.A)]
+        [ValueAlias("mw", E.MultiWord)]
         public E Argument { get; set; }
     }
     [TestMethod]
