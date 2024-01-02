@@ -24,9 +24,10 @@
 
 // Note: use only C#7.3 for .NET Framework 4.7.2 only environs.
 
+//#define ARGPARCE_EXPORT
+
 using System;
 using System.Collections.Generic;
-//using ;
 
 namespace SharpArgParse
 {
@@ -120,5 +121,42 @@ namespace SharpArgParse
             ShortAlias = shortAlias;
             Value = value;
         }
+    }
+
+    // exceptions
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    abstract class ArgParseException : Exception
+    {
+        internal ArgParseException(string message) : base(message) { }
+        internal ArgParseException(string message, Exception innerException)
+            : base(message, innerException) { }
+    }
+    internal class InternalException : ArgParseException
+    {
+        internal InternalException(string message) : base(message) { }
+        internal InternalException(string message, Exception innerException)
+            : base(message, innerException) { }
+    }
+    internal abstract class SettingMisstakeException : ArgParseException
+    {
+        internal SettingMisstakeException(string message) : base(message) { }
+        internal SettingMisstakeException(string message, Exception innerException)
+            : base(message, innerException) { }
+    }
+
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    class CommandLineException : ArgParseException
+    {
+        internal CommandLineException(string message) : base(message) { }
+        internal CommandLineException(string message, Exception innerException)
+            : base(message, innerException) { }
     }
 }
