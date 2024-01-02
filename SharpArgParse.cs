@@ -93,7 +93,32 @@ namespace SharpArgParse
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
     internal class ShortAliasAttribute : Attribute
     {
-        public char Alias { get; }
-        public ShortAliasAttribute(char alias) => Alias = alias;
+        public char ShortAlias { get; }
+        public ShortAliasAttribute(char shortAlias) => ShortAlias = shortAlias;
+    }
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+    internal class ValueAliasAttribute : Attribute
+    {
+        public string Alias { get; }
+        public object Value { get; }
+        public ValueAliasAttribute(string alias, object value)
+        {
+            if (alias is null) throw new ArgumentNullException(nameof(alias));
+            if (value is null) throw new ArgumentNullException(nameof(value));
+            Alias = alias;
+            Value = value;
+        }
+    }
+    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+    internal class ShortValueAliasAttribute : Attribute
+    {
+        public char ShortAlias { get; }
+        public object Value { get; }
+        public ShortValueAliasAttribute(char shortAlias, object value)
+        {
+            if (value is null) throw new ArgumentNullException(nameof(value));
+            ShortAlias = shortAlias;
+            Value = value;
+        }
     }
 }

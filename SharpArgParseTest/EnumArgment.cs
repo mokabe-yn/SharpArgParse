@@ -14,6 +14,9 @@ class EnumValue
         // * --argument=a
         // * --argument-is-a
         // * -a
+        [ShortValueAlias('a', E.A)]
+        [ValueAlias("--a", E.A)]
+        [ValueAlias("--mw", E.MultiWord)]
         public E Argument { get; set; }
     }
     [TestMethod]
@@ -38,5 +41,26 @@ class EnumValue
             "--argument=multi-word",
         ]);
         Assert.AreEqual(opts.Argument, E.MultiWord);
+    }
+    public void SetValue4()
+    {
+        var (opts, rest) = ArgParse.Parse<Target>([
+            "--a",
+        ]);
+        Assert.AreEqual(opts.Argument, E.A);
+    }
+    public void SetValue5()
+    {
+        var (opts, rest) = ArgParse.Parse<Target>([
+            "--mw",
+        ]);
+        Assert.AreEqual(opts.Argument, E.MultiWord);
+    }
+    public void Short()
+    {
+        var (opts, rest) = ArgParse.Parse<Target>([
+            "-a",
+        ]);
+        Assert.AreEqual(opts.Argument, E.A);
     }
 }
