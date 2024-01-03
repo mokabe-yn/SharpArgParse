@@ -165,6 +165,8 @@ namespace SharpArgParse
             public static bool IsEmpty(Trigger t) => ReferenceEquals(t, Empty);
 
             public PropertyInfo TargetProperty { get; }
+            public Type ElementType { get; }
+            public bool IsMultiArgument { get; }
             public bool RecieveArgument { get; }
             public string TriggerName { get; }
             public char ShortTrigger { get; }
@@ -192,6 +194,13 @@ namespace SharpArgParse
                 RecieveArgument = !isbool;
                 TargetProperty = targetProperty;
 
+                // T[] => T, T => T
+                Type type = TargetProperty.PropertyType;
+                IsMultiArgument = type.IsArray;
+                ElementType = IsMultiArgument ?
+                    type.GetElementType() ?? throw new InternalException("") :
+                    type;
+
                 ShortTrigger = '\0';
                 TriggerName = "--" + InternalUtility.ToKebabCase(targetProperty.Name);
             }
@@ -213,19 +222,32 @@ namespace SharpArgParse
                     _backingTargetValue = valias.Value;
                 }
             }
+            private void ApplyValue(object options, object value)
+            {
+                if (IsMultiArgument)
+                {
+                    // [1,2,3] => [1,2,3,value]
+                    Array old = (Array)(TargetProperty.GetValue(options)
+                        ?? Array.CreateInstance(ElementType, 0));
+                    Array dst = Array.CreateInstance(
+                        ElementType, old.Length + 1);
+                    old.CopyTo(dst, 0);
+                    dst.SetValue(value, old.Length);
+                    TargetProperty.SetValue(options, dst);
+                }
+                else
+                {
+                    TargetProperty.SetValue(options, value);
+                }
+            }
             public void Apply(object options)
-            {
-                // TODO: 複数受け付けるオプションへの対応
-                TargetProperty.SetValue(options, _backingTargetValue);
-            }
+                => ApplyValue(options, _backingTargetValue);
             public void Apply(object options, string stringValue)
+                => ApplyValue(options, ConvertTo(
+                    TargetProperty, ElementType, stringValue));
+
+            private static object ConvertTo(PropertyInfo pinfo, Type t, string s)
             {
-                var value = ConvertTo(TargetProperty, stringValue);
-                TargetProperty.SetValue(options, value);
-            }
-            private static object ConvertTo(PropertyInfo pinfo, string s)
-            {
-                Type t = pinfo.PropertyType;
                 if (t == typeof(sbyte)) return Convert.ToSByte(s);
                 if (t == typeof(short)) return Convert.ToInt16(s);
                 if (t == typeof(int)) return Convert.ToInt32(s);
