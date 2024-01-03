@@ -130,6 +130,24 @@ namespace SharpArgParse
                 .Select(be => low.Substring(be.Item1, be.Item2 - be.Item1))
                 );
         }
+        private static string ToUpperHeadOnly(string s)
+        {
+            if (s.Length == 0) return s;
+            return char.ToUpper(
+                s[0], System.Globalization.CultureInfo.InvariantCulture) +
+                s.Substring(1);
+        }
+        public static string KebabCaseToPascalCase(string s)
+        {
+            if (!IsCebabCase(s))
+            {
+                throw new ArgumentException(
+                    "string is not kebab-case", nameof(s));
+            }
+            var ret = s.Split('-')
+                .Select(ToUpperHeadOnly);
+            return string.Join("", ret);
+        }
     }
     internal static class ArgParse<TOptions> where TOptions : new()
     {
@@ -257,6 +275,11 @@ namespace SharpArgParse
                 if (t == typeof(uint)) return Convert.ToUInt32(s);
                 if (t == typeof(ulong)) return Convert.ToUInt64(s);
                 if (t == typeof(string)) return s;
+                if (t.IsEnum)
+                {
+                    string k = InternalUtility.KebabCaseToPascalCase(s);
+                    return Enum.Parse(t, k);
+                }
                 throw new SettingMisstakeException(
                     $"{pinfo.Name}: " +
                     $"Unsupported type: " +
