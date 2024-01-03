@@ -187,8 +187,9 @@ namespace SharpArgParse
             }
             public Trigger(PropertyInfo targetProperty)
             {
-                _backingTargetValue = UnsetValue;
-                RecieveArgument = targetProperty.PropertyType != typeof(bool);
+                bool isbool = targetProperty.PropertyType == typeof(bool);
+                _backingTargetValue = isbool ? true : UnsetValue;
+                RecieveArgument = !isbool;
                 TargetProperty = targetProperty;
 
                 ShortTrigger = '\0';
