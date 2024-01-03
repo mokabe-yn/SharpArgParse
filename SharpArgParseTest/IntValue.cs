@@ -100,7 +100,7 @@ public class IntValue
     [TestMethod]
     public void TooBigValue()
     {
-        Assert.ThrowsException<ArgumentException>(() => {
+        Assert.ThrowsException<OverflowException>(() => {
             var (_, _) = ArgParse.Parse<Target>([
                 "--u32=18446744073709551615",
             ]);
