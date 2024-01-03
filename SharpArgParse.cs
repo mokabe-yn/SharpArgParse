@@ -105,7 +105,7 @@ namespace SharpArgParse
         /// <remarks>
         /// cabab-case-is-delimited-string-by-hyphen.
         /// </remarks>
-        public static bool IsCebabCase(string s)
+        public static bool IsKebabCase(string s)
         {
             if (s.Length == 0) return true;
             if (s[0] == '-') return false;
@@ -118,7 +118,7 @@ namespace SharpArgParse
         /// </summary>
         public static string ToKebabCase(string s)
         {
-            if (IsCebabCase(s)) return s;
+            if (IsKebabCase(s)) return s;
             if (!IsPascalOrCamelCase(s))
             {
                 throw new ArgumentException(
@@ -139,7 +139,7 @@ namespace SharpArgParse
         }
         public static string KebabCaseToPascalCase(string s)
         {
-            if (!IsCebabCase(s))
+            if (!IsKebabCase(s))
             {
                 throw new ArgumentException(
                     "string is not kebab-case", nameof(s));
@@ -159,13 +159,6 @@ namespace SharpArgParse
                 System.Reflection.BindingFlags.SetProperty |
                 System.Reflection.BindingFlags.GetProperty |
                 0);
-        }
-        private static void Update(ref TOptions options)
-        {
-
-        }
-        private static void CreateActionTable()
-        {
         }
 
         private static IEnumerable<Trigger> ToTrigger(PropertyInfo prop) {
