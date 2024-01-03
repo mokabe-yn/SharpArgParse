@@ -2,7 +2,7 @@
 namespace SharpArgParseTest;
 
 [TestClass]
-class MultiWord
+public class MultiWord
 {
     class Target
     {

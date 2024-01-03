@@ -2,7 +2,7 @@ using SharpArgParse;
 namespace SharpArgParseTest;
 
 [TestClass]
-class BinaryOption
+public class BinaryOption
 {
     class Target
     {

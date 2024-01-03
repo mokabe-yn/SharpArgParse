@@ -4,7 +4,7 @@ namespace SharpArgParseTest;
 
 
 [TestClass]
-class MultipleArgument
+public class MultipleArgument
 {
     class Target
     {

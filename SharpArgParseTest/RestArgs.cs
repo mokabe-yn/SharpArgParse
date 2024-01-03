@@ -2,7 +2,7 @@
 namespace SharpArgParseTest;
 
 [TestClass]
-class RestArgs
+public class RestArgs
 {
     class Target
     {

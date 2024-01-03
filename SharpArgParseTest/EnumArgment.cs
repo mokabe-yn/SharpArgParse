@@ -2,7 +2,7 @@
 namespace SharpArgParseTest;
 
 [TestClass]
-class EnumValue
+public class EnumValue
 {
     enum E { 
         A, B, C, D, E,

@@ -2,7 +2,7 @@
 namespace SharpArgParseTest;
 
 [TestClass]
-class SingleArgumentOption
+public class SingleArgumentOption
 {
     class Target
     {

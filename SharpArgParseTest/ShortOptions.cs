@@ -2,7 +2,7 @@
 namespace SharpArgParseTest;
 
 [TestClass]
-class ShortOptions
+public class ShortOptions
 {
     class Target
     {

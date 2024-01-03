@@ -2,7 +2,7 @@
 namespace SharpArgParseTest;
 
 [TestClass]
-class IntValue
+public class IntValue
 {
     class Target
     {
