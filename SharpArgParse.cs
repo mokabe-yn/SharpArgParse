@@ -1,4 +1,4 @@
-/* SharpArgParse
+/* SharpArgParse v0.9.1
  * Copyright (c) 2024 mokabe-yn <okabe_m@hmi.aitech.ac.jp>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
@@ -39,6 +39,9 @@
 //         Cannot annotate nullable like `string? Value`.
 //       * ValueTuple (only net47 or later)
 
+// TODO: auto generate help.
+// TODO: call help-mode: prog.exe --help
+
 #pragma warning disable IDE0290 // C#12: primary constructor
 #pragma warning disable CA1510  // C#10: ArgumentNullException.ThrowIfNull
 #pragma warning disable IDE0251 // C#8: readonly instance members
@@ -50,10 +53,11 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using SharpArgParse.Internals;
 
-namespace SharpArgParse
+namespace SharpArgParse.Internals
 {
-    internal static class InternalUtility
+    internal static class StringConvert
     {
         private static bool IsLowerAlpha(char c)
             => "abcdefghijklmnopqrstuvwxyz".Contains(c);
@@ -68,37 +72,28 @@ namespace SharpArgParse
         private static bool IsCababElement(char c)
             => IsNumber(c) || IsLowerAlpha(c) || c == '-';
 
-        /// <summary>ValueTuple</summary>
-        internal readonly struct Value2<T1, T2>
-        {
-            public readonly T1 Item1 { get; }
-            public readonly T2 Item2 { get; }
-            public Value2(T1 t1, T2 t2)
-            {
-                Item1 = t1;
-                Item2 = t2;
-            }
-            public readonly void Deconstructor(out T1 t1, out T2 t2)
-            {
-                t1 = Item1;
-                t2 = Item2;
-            }
-        }
-
-        private static IEnumerable<Value2<int, int>> CamelSplitIndices(string s)
+        private static IEnumerable<InternalTuple<int, int>> CamelSplitIndices(string s)
         {
             int prev = 0;
-            for(int i = 1; i < s.Length; ++i)
+            for (int i = 1; i < s.Length; ++i)
             {
                 if (IsUpperAlpha(s[i]))
                 {
-                    yield return new Value2<int, int>(prev, i);
+                    yield return new InternalTuple<int, int>(prev, i);
                     prev = i;
                 }
             }
-            yield return new Value2<int, int>(prev, s.Length);
+            yield return new InternalTuple<int, int>(prev, s.Length);
+        }
+        private static string ToUpperHeadOnly(string s)
+        {
+            if (s.Length == 0) return s;
+            return char.ToUpper(
+                s[0], System.Globalization.CultureInfo.InvariantCulture) +
+                s.Substring(1);
         }
 
+        /// <summary>Is PascalCase or camelCase?</summary>
         public static bool IsPascalOrCamelCase(string s)
             => s.All(IsAlnum) && (s.Length == 0 || IsAlpha(s[0]));
         /// <summary>Is argument cabab-case?</summary>
@@ -130,13 +125,9 @@ namespace SharpArgParse
                 .Select(be => low.Substring(be.Item1, be.Item2 - be.Item1))
                 );
         }
-        private static string ToUpperHeadOnly(string s)
-        {
-            if (s.Length == 0) return s;
-            return char.ToUpper(
-                s[0], System.Globalization.CultureInfo.InvariantCulture) +
-                s.Substring(1);
-        }
+        /// <summary>
+        /// convert from kebab-case to PascalCase.
+        /// </summary>
         public static string KebabCaseToPascalCase(string s)
         {
             if (!IsKebabCase(s))
@@ -149,135 +140,46 @@ namespace SharpArgParse
             return string.Join("", ret);
         }
     }
-    internal static class ArgParse<TOptions> where TOptions : new()
+
+    /// <summary>ValueTuple</summary>
+    internal readonly struct InternalTuple<T1, T2>
     {
-        public static System.Reflection.PropertyInfo[] GetPropertiesInfo()
+        public readonly T1 Item1 { get; }
+        public readonly T2 Item2 { get; }
+        public InternalTuple(T1 t1, T2 t2)
         {
-            return typeof(TOptions).GetProperties(
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.SetProperty |
-                System.Reflection.BindingFlags.GetProperty |
-                0);
+            Item1 = t1;
+            Item2 = t2;
         }
-
-        private static IEnumerable<Trigger> ToTrigger(PropertyInfo prop) {
-            yield return new Trigger(prop);
-            foreach (var attr in prop.GetCustomAttributes<AliasAttribute>())
-            {
-                yield return new Trigger(prop, attr);
-            }
-        }
-        private class Trigger
+        public readonly void Deconstructor(out T1 t1, out T2 t2)
         {
-            public static Trigger Empty = new Trigger(
-                typeof(Trigger).GetProperty(nameof(TriggerName))
-                ?? throw new InternalException(""));
-            public static bool IsEmpty(Trigger t) => ReferenceEquals(t, Empty);
-
-            public PropertyInfo TargetProperty { get; }
-            public Type ElementType { get; }
-            public bool IsMultiArgument { get; }
-            public bool RecieveArgument { get; }
-            public string TriggerName { get; }
-            public char ShortTrigger { get; }
-            public bool IsShortTrigger => ShortTrigger != '\0';
-            private static readonly object UnsetValue = new object();
-            private readonly object _backingTargetValue;
-            public object TargetValue
+            t1 = Item1;
+            t2 = Item2;
+        }
+    }
+    internal static class Utility
+    {
+        /// <summary>
+        /// convert to <paramref name="t"/> type.
+        /// </summary>
+        /// <exception cref="SettingMisstakeException"></exception>
+        public static object ConvertTo(Type t, string s)
+        {
+            if (t == typeof(sbyte)) return Convert.ToSByte(s);
+            if (t == typeof(short)) return Convert.ToInt16(s);
+            if (t == typeof(int)) return Convert.ToInt32(s);
+            if (t == typeof(long)) return Convert.ToInt64(s);
+            if (t == typeof(byte)) return Convert.ToByte(s);
+            if (t == typeof(ushort)) return Convert.ToUInt16(s);
+            if (t == typeof(uint)) return Convert.ToUInt32(s);
+            if (t == typeof(ulong)) return Convert.ToUInt64(s);
+            if (t == typeof(string)) return s;
+            if (t.IsEnum)
             {
-                get
-                {
-                    if (ReferenceEquals(UnsetValue, _backingTargetValue))
-                    {
-                        throw new InternalException(
-                            $"{TargetProperty.Name}({TriggerName}):" +
-                            "TargetValue is not available."
-                            );
-                    }
-                    return _backingTargetValue;
-                }
+                string k = StringConvert.KebabCaseToPascalCase(s);
+                return Enum.Parse(t, k);
             }
-            public Trigger(PropertyInfo targetProperty)
-            {
-                bool isbool = targetProperty.PropertyType == typeof(bool);
-                _backingTargetValue = isbool ? true : UnsetValue;
-                RecieveArgument = !isbool;
-                TargetProperty = targetProperty;
-
-                // T[] => T, T => T
-                Type type = TargetProperty.PropertyType;
-                IsMultiArgument = type.IsArray;
-                ElementType = IsMultiArgument ?
-                    type.GetElementType() ?? throw new InternalException("") :
-                    type;
-
-                ShortTrigger = '\0';
-                TriggerName = "--" + InternalUtility.ToKebabCase(targetProperty.Name);
-            }
-            public Trigger(PropertyInfo targetProperty, AliasAttribute alias)
-                : this(targetProperty)
-            {
-                if (alias.IsShortAlias)
-                {
-                    ShortTrigger = alias.ShortAlias;
-                }
-                else
-                {
-                    TriggerName = "--" + InternalUtility.ToKebabCase(alias.Alias);
-                }
-
-                if (alias is ValueAliasAttribute valias)
-                {
-                    RecieveArgument = false;
-                    _backingTargetValue = valias.Value;
-                }
-            }
-            private void ApplyValue(object options, object value)
-            {
-                if (IsMultiArgument)
-                {
-                    // [1,2,3] => [1,2,3,value]
-                    Array old = (Array)(TargetProperty.GetValue(options)
-                        ?? Array.CreateInstance(ElementType, 0));
-                    Array dst = Array.CreateInstance(
-                        ElementType, old.Length + 1);
-                    old.CopyTo(dst, 0);
-                    dst.SetValue(value, old.Length);
-                    TargetProperty.SetValue(options, dst);
-                }
-                else
-                {
-                    TargetProperty.SetValue(options, value);
-                }
-            }
-            public void Apply(object options)
-                => ApplyValue(options, _backingTargetValue);
-            public void Apply(object options, string stringValue)
-                => ApplyValue(options, ConvertTo(
-                    TargetProperty, ElementType, stringValue));
-
-            private static object ConvertTo(PropertyInfo pinfo, Type t, string s)
-            {
-                if (t == typeof(sbyte)) return Convert.ToSByte(s);
-                if (t == typeof(short)) return Convert.ToInt16(s);
-                if (t == typeof(int)) return Convert.ToInt32(s);
-                if (t == typeof(long)) return Convert.ToInt64(s);
-                if (t == typeof(byte)) return Convert.ToByte(s);
-                if (t == typeof(ushort)) return Convert.ToUInt16(s);
-                if (t == typeof(uint)) return Convert.ToUInt32(s);
-                if (t == typeof(ulong)) return Convert.ToUInt64(s);
-                if (t == typeof(string)) return s;
-                if (t.IsEnum)
-                {
-                    string k = InternalUtility.KebabCaseToPascalCase(s);
-                    return Enum.Parse(t, k);
-                }
-                throw new SettingMisstakeException(
-                    $"{pinfo.Name}: " +
-                    $"Unsupported type: " +
-                    $"{pinfo.PropertyType.FullName}");
-            }
+            throw new ArgumentException($"Unsupported type: {t.FullName}");
         }
         public static IEnumerable<T> Chain<T>(IEnumerable<IEnumerable<T>> source)
         {
@@ -289,13 +191,137 @@ namespace SharpArgParse
                 }
             }
         }
-        private static Trigger UniqueLongTrigger(string arg, Trigger[] longs)
+    }
+    internal class Trigger
+    {
+        public static Trigger Empty = new Trigger(
+            typeof(Trigger).GetProperty(nameof(TriggerName))
+            ?? throw new InternalException(""));
+        public static bool IsEmpty(Trigger t) => ReferenceEquals(t, Empty);
+
+        public PropertyInfo TargetProperty { get; }
+        public Type ElementType { get; }
+        public bool IsMultiArgument { get; }
+        public bool RecieveArgument { get; }
+        public string TriggerName { get; }
+        public char ShortTrigger { get; }
+        public bool IsShortTrigger => ShortTrigger != '\0';
+        private static readonly object UnsetValue = new object();
+        private readonly object _backingTargetValue;
+        public object TargetValue
+        {
+            get
+            {
+                if (ReferenceEquals(UnsetValue, _backingTargetValue))
+                {
+                    throw new InternalException(
+                        $"{TargetProperty.Name}({TriggerName}):" +
+                        "TargetValue is not available."
+                        );
+                }
+                return _backingTargetValue;
+            }
+        }
+        public Trigger(PropertyInfo targetProperty)
+        {
+            bool isbool = targetProperty.PropertyType == typeof(bool);
+            _backingTargetValue = isbool ? true : UnsetValue;
+            RecieveArgument = !isbool;
+            TargetProperty = targetProperty;
+
+            // T[] => T, T => T
+            Type type = TargetProperty.PropertyType;
+            IsMultiArgument = type.IsArray;
+            ElementType = IsMultiArgument ?
+                type.GetElementType() ?? throw new InternalException("") :
+                type;
+
+            ShortTrigger = '\0';
+            TriggerName = "--" + StringConvert.ToKebabCase(targetProperty.Name);
+        }
+        public Trigger(PropertyInfo targetProperty, AliasAttribute alias)
+            : this(targetProperty)
+        {
+            if (alias.IsShortAlias)
+            {
+                ShortTrigger = alias.ShortAlias;
+            }
+            else
+            {
+                TriggerName = "--" + StringConvert.ToKebabCase(alias.Alias);
+            }
+
+            if (alias is ValueAliasAttribute valias)
+            {
+                RecieveArgument = false;
+                _backingTargetValue = valias.Value;
+            }
+        }
+        private void ApplyValue(object options, object value)
+        {
+            if (IsMultiArgument)
+            {
+                // TODO: make T[] every time: O(N^2) => use List<T>: O(N)
+                // [1,2,3] => [1,2,3,value]
+                Array old = (Array)(TargetProperty.GetValue(options)
+                    ?? Array.CreateInstance(ElementType, 0));
+                Array dst = Array.CreateInstance(
+                    ElementType, old.Length + 1);
+                old.CopyTo(dst, 0);
+                dst.SetValue(value, old.Length);
+                TargetProperty.SetValue(options, dst);
+            }
+            else
+            {
+                TargetProperty.SetValue(options, value);
+            }
+        }
+        public void Apply(object options)
+            => ApplyValue(options, _backingTargetValue);
+        public void Apply(object options, string stringValue)
+        {
+            object value;
+            try
+            {
+                value = Utility.ConvertTo(ElementType, stringValue);
+            }
+            catch (Exception ex)
+            {
+                throw new CommandLineException(
+                    $"{TriggerName}: {ex.Message}", ex);
+            }
+            ApplyValue(options, value);
+        }
+    }
+    internal class ArgumentReciever<TOptions>
+    {
+        private Trigger[] Shorts { get; }
+        private Trigger[] Longs { get; }
+        private bool AllowLater { get; }
+
+        private bool RestOnlyMode { get; set; } = false;
+        private Trigger CurrentTarget { get; set; } = Trigger.Empty;
+        private List<string> RestArgument { get; } = new List<string>();
+        // (boxed if struct) options instance
+        private object Options { get; }
+        public TOptions GetOptions() => (TOptions)Options;
+        public string[] GetRest() => RestArgument.ToArray();
+        public void Validate()
+        {
+            if (!Trigger.IsEmpty(CurrentTarget))
+            {
+                throw new CommandLineException(
+                    $"option {CurrentTarget.TriggerName} requires a value.");
+            }
+        }
+
+        private Trigger UniqueLongTrigger(string arg)
         {
             if (arg.Contains('='))
             {
                 arg = arg.Split('=', 2)[0];
             }
-            var ret = longs.Where(t => t.TriggerName.StartsWith(arg)).ToArray();
+            var ret = Longs.Where(t => t.TriggerName.StartsWith(arg)).ToArray();
             if (ret.Length == 0)
             {
                 throw new CommandLineException(
@@ -312,9 +338,9 @@ namespace SharpArgParse
             }
             return ret[0];
         }
-        private static Trigger UniqueShortTrigger(char arg, Trigger[] shorts)
+        private Trigger UniqueShortTrigger(char arg)
         {
-            var ret = shorts.Where(t => t.ShortTrigger == arg).ToArray();
+            var ret = Shorts.Where(t => t.ShortTrigger == arg).ToArray();
             if (ret.Length == 0)
             {
                 throw new CommandLineException(
@@ -330,129 +356,250 @@ namespace SharpArgParse
             }
             return ret[0];
         }
-        private static ParseResult<TOptions> Core(
-            string[] args, bool allowLater, Trigger[] shorts, Trigger[] longs)
-        {
-            // TODO: refactor to class-Core state machine.
-            bool restonly = false;
-            Trigger target = Trigger.Empty;
-            object boxed_options = new TOptions();
-            var rest = new List<string>();
 
-            foreach (string a in args)
+        public ArgumentReciever(
+            object options, bool allowLater, Trigger[] shorts, Trigger[] longs)
+        {
+            Options = options;
+            AllowLater = allowLater;
+            Shorts = shorts;
+            Longs = longs;
+        }
+        public void Next(string arg)
+        {
+            Action<string> action =
+                RestOnlyMode ? RestAdd :
+                !Trigger.IsEmpty(CurrentTarget) ? RecieveRemainedArgument :
+                arg == "--" ? TerminateOption :
+                arg.StartsWith("--") ? ApplyLongOption :
+                arg.StartsWith('-') ? ApplyShortOption :
+                ApplyRestArgument;
+            action(arg);
+        }
+
+        private void RestAdd(string arg)
+            => RestArgument.Add(arg);
+        private void RecieveRemainedArgument(string arg)
+        {
+            CurrentTarget.Apply(Options, arg);
+            CurrentTarget = Trigger.Empty;
+        }
+        private void TerminateOption(string _)
+            => RestOnlyMode = true;
+        private void ApplyLongOption(string arg)
+        {
+            Trigger trigger = UniqueLongTrigger(arg);
+            if (!trigger.RecieveArgument)
             {
-                if (restonly)
+                trigger.Apply(Options);
+                return;
+            }
+            string[] a01 = arg.Split('=', 2);
+            if (a01.Length == 2)
+            {
+                trigger.Apply(Options, a01[1]);
+            }
+            else
+            {
+                // need recieve next argument
+                CurrentTarget = trigger;
+            }
+        }
+        private void ApplyShortOption(string arg)
+        {
+            for (string s = arg.Substring(1); s.Length != 0; s = s.Substring(1))
+            {
+                Trigger t = UniqueShortTrigger(s[0]);
+                if (!t.RecieveArgument)
                 {
-                    rest.Add(a);
-                    continue;
+                    // no argument option
+                    // grep -niE
+                    t.Apply(Options);
                 }
-                if (!Trigger.IsEmpty(target))
+                else
                 {
-                    target.Apply(boxed_options, a);
-                    target = Trigger.Empty;
-                    continue;
-                }
-                if (a == "--")
-                {
-                    restonly = true;
-                    continue;
-                }
-                if (a.StartsWith("--"))
-                {
-                    Trigger trigger = UniqueLongTrigger(a, longs);
-                    if (!trigger.RecieveArgument)
+                    // recieve argument option
+                    if (s.Length != 1)
                     {
-                        trigger.Apply(boxed_options);
-                        continue;
-                    }
-                    string[] argelement = a.Split('=', 2);
-                    if (argelement.Length == 2)
-                    {
-                        trigger.Apply(boxed_options, argelement[1]);
-                        continue;
+                        // not splited : grep -ePATTERN
+                        t.Apply(Options, s.Substring(1));
                     }
                     else
                     {
-                        // need recieve next argument
-                        target = trigger;
-                        continue;
+                        // splited : grep -e PATTERN
+                        CurrentTarget = t;
                     }
+                    return;
                 }
-                if (a.StartsWith('-') && a.Length != 1)
-                {
-                    for (string s = a.Substring(1); s.Length != 0; s = s.Substring(1))
-                    {
-                        Trigger t = UniqueShortTrigger(s[0], shorts);
-                        if (!t.RecieveArgument)
-                        {
-                            t.Apply(boxed_options);
-                            continue;
-                        }
-                        else
-                        {
-                            if (s.Length != 1)
-                            {
-                                t.Apply(boxed_options, s.Substring(1));
-                            }
-                            else
-                            {
-                                target = t;
-                            }
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                rest.Add(a);
-                restonly = !allowLater;
             }
-            return new ParseResult<TOptions>(
-                (TOptions)boxed_options, rest.ToArray());
+        }
+        private void ApplyRestArgument(string arg)
+        {
+            RestArgument.Add(arg);
+            RestOnlyMode = !AllowLater;
+        }
+    }
+}
+
+namespace SharpArgParse
+{
+    /// <summary>
+    /// Parses command line option argument. 
+    /// Use <see cref="ArgParse{TOptions}.Parse(string[], bool)"/>
+    /// </summary>
+    /// <remarks>
+    /// <typeparamref name="TOptions"/> is target options class. e.g.
+    /// <code><![CDATA[
+    /// // prog.exe --target-file a.txt --export
+    /// class Options {
+    ///     public string? TargetFile { get; set; }
+    ///     public bool Export { get; set; }
+    /// }
+    /// ]]></code>
+    /// Use helper attributes: 
+    /// <see cref="AliasAttribute"/> and 
+    /// <see cref="ValueAliasAttribute"/>.
+    /// </remarks>
+    /// <typeparam name="TOptions">Target option type</typeparam>
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    static class ArgParse<TOptions> where TOptions : new()
+    {
+        private static System.Reflection.PropertyInfo[] GetPropertiesInfo()
+        {
+            return typeof(TOptions).GetProperties(
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.SetProperty |
+                System.Reflection.BindingFlags.GetProperty |
+                0);
         }
 
+        private static IEnumerable<Trigger> ToTrigger(PropertyInfo prop) {
+            yield return new Trigger(prop);
+            foreach (var attr in prop.GetCustomAttributes<AliasAttribute>())
+            {
+                yield return new Trigger(prop, attr);
+            }
+        }
+
+        /// <summary>
+        /// Parses command line option argument. 
+        /// </summary>
+        /// <param name="args">command line arguments</param>
+        /// <param name="allowLater">
+        /// allow later option then argument.
+        /// e.g. <c><![CDATA[grep PATTERN -E]]></c>
+        /// </param>
+        /// <returns>setted options and rest arguments</returns>
+        /// <exception cref="CommandLineException">invalid command line</exception>
+        /// <exception cref="SettingMisstakeException" />
         public static ParseResult<TOptions> Parse(
             string[] args, bool allowLater = true)
         {
             var infos = GetPropertiesInfo();
-            Trigger[] triggers = Chain(infos.Select(ToTrigger)).ToArray();
+            Trigger[] triggers = Utility.Chain(infos.Select(ToTrigger)).ToArray();
 
             // TODO: validate no dup.
             Trigger[] shorts = triggers.Where(t => t.IsShortTrigger).ToArray();
             Trigger[] longs = triggers.Where(t => !t.IsShortTrigger).ToArray();
-            return Core(args, allowLater, shorts, longs);
+
+            var m = new ArgumentReciever<TOptions>(
+                new TOptions(), allowLater, shorts, longs);
+            foreach (string arg in args)
+            {
+                m.Next(arg);
+            }
+            m.Validate();
+            return new ParseResult<TOptions>(m.GetOptions(), m.GetRest());
         }
     }
-    internal static class ArgParse
+    /// <summary>
+    /// Parses command line option argument. 
+    /// Use <see cref="Parse(string[], bool)"/>
+    /// </summary>
+    /// <inheritdoc cref="ArgParse{TOptions}"/>
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    static class ArgParse
     {
         // alias ArgParse<TOptions>
+        /// <inheritdoc cref="ArgParse{TOptions}.Parse(string[], bool)"/>
+        /// <typeparam name="TOptions">
+        /// <inheritdoc cref="ArgParse{TOptions}"/>
+        /// </typeparam>
         public static ParseResult<TOptions> Parse<TOptions>(
             string[] args, bool allowLater = true)
             where TOptions : new() => 
             ArgParse<TOptions>.Parse(args, allowLater);
     }
+
+    /// <summary>
+    /// Parsed results Tuple. 
+    /// </summary>
+    /// <typeparam name="TOptions">
+    /// <inheritdoc cref="ArgParse{TOptions}"/>
+    /// </typeparam>
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
     readonly struct ParseResult<TOptions>
     {
+        /// <summary>result</summary>
         public TOptions Options { get; }
+        /// <summary>rest arguments</summary>
         public string[] RestArgs { get; }
+        /// <summary/>
         public ParseResult(TOptions options, string[] restArgs)
         {
             Options = options;
             RestArgs = restArgs;
         }
+        /// <summary>for <c>var (opts, rest) = ...;</c></summary>
         public readonly void Deconstruct(out TOptions options, out string[] restArgs)
         {
             options = Options;
             restArgs = RestArgs;
         }
     }
-
+    /// <summary>
+    /// sets option alias
+    /// </summary>
+    /// <remarks>
+    /// e.g. <code><![CDATA[
+    /// class Options {
+    ///     // prog.exe --alias-style -B -c
+    ///     [Alias("alias-style")]
+    ///     [Alias('B')]
+    ///     [Alias('c')]
+    ///     public bool Flag { get; set; }
+    /// }
+    /// ]]></code>
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    internal class AliasAttribute : Attribute
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    class AliasAttribute : Attribute
     {
+        /// <summary/>
         public string Alias { get; }
+        /// <summary/>
         public char ShortAlias { get; }
+        /// <summary/>
         public bool IsShortAlias { get; }
 
+        /// <param name="alias">long option style alias</param>
         public AliasAttribute(string alias)
         {
             if (alias is null) throw new ArgumentNullException(nameof(alias));
@@ -460,6 +607,7 @@ namespace SharpArgParse
             ShortAlias = '\0';
             IsShortAlias = false;
         }
+        /// <param name="shortAlias">short option style alias</param>
         public AliasAttribute(char shortAlias)
         {
             Alias = "";
@@ -467,16 +615,46 @@ namespace SharpArgParse
             IsShortAlias = true;
         }
     }
+
+    /// <summary>
+    /// specify value to target property
+    /// </summary>
+    /// <remarks>
+    /// e.g. <code><![CDATA[
+    /// class Options {
+    ///     // prog.exe --mode sorting-network --net -n
+    ///     [ValueAlias("net", SortMode.SortingNetwork)]
+    ///     [ValueAlias('n', SortMode.SortingNetwork)]
+    ///     public SortMode Mode { get; set; }
+    ///     enum SortMode {
+    ///         Bubble,
+    ///         Stooge,
+    ///         Bogo,
+    ///         SortingNetwork,
+    ///     }
+    /// }
+    /// ]]></code>
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    internal class ValueAliasAttribute : AliasAttribute
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    class ValueAliasAttribute : AliasAttribute
     {
+        /// <summary/>
         public object Value { get; }
+        /// <inheritdoc cref="AliasAttribute(string)"/>
+        /// <param name="value">setting value</param>
         public ValueAliasAttribute(string alias, object value) 
             : base(alias)
         {
             if (value is null) throw new ArgumentNullException(nameof(value));
             Value = value;
         }
+        /// <inheritdoc cref="AliasAttribute(char)"/>
+        /// <inheritdoc cref="ValueAliasAttribute(string, object)"/>
         public ValueAliasAttribute(char shortAlias, object value) 
             : base(shortAlias)
         {
@@ -486,38 +664,41 @@ namespace SharpArgParse
     }
 
     // exceptions
+    /// <summary>this librarys internal error</summary>
+    internal class InternalException : Exception
+    {
+        /// <inheritdoc cref="Exception(string)"/>
+        internal InternalException(string message) : base(message) { }
+        /// <inheritdoc cref="Exception(string, Exception)"/>
+        internal InternalException(string message, Exception innerException)
+            : base(message, innerException) { }
+    }
+    /// <summary>using this library incorrectly</summary>
 #if ARGPARCE_EXPORT
     public
 #else
     internal
 #endif
-    abstract class ArgParseException : Exception
+    class SettingMisstakeException : Exception
     {
-        internal ArgParseException(string message) : base(message) { }
-        internal ArgParseException(string message, Exception innerException)
-            : base(message, innerException) { }
-    }
-    internal class InternalException : ArgParseException
-    {
-        internal InternalException(string message) : base(message) { }
-        internal InternalException(string message, Exception innerException)
-            : base(message, innerException) { }
-    }
-    internal class SettingMisstakeException : ArgParseException
-    {
+        /// <inheritdoc cref="Exception(string)"/>
         internal SettingMisstakeException(string message) : base(message) { }
+        /// <inheritdoc cref="Exception(string, Exception)"/>
         internal SettingMisstakeException(string message, Exception innerException)
             : base(message, innerException) { }
     }
 
+    /// <summary>invalid commandline</summary>
 #if ARGPARCE_EXPORT
     public
 #else
     internal
 #endif
-    class CommandLineException : ArgParseException
+    class CommandLineException : Exception
     {
+        /// <inheritdoc cref="Exception(string)"/>
         internal CommandLineException(string message) : base(message) { }
+        /// <inheritdoc cref="Exception(string, Exception)"/>
         internal CommandLineException(string message, Exception innerException)
             : base(message, innerException) { }
     }
