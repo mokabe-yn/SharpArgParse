@@ -50,10 +50,11 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using SharpArgParse.Internals;
 
-namespace SharpArgParse
+namespace SharpArgParse.Internals
 {
-    internal static class InternalUtility
+    internal static class StringConvert
     {
         private static bool IsLowerAlpha(char c)
             => "abcdefghijklmnopqrstuvwxyz".Contains(c);
@@ -68,37 +69,28 @@ namespace SharpArgParse
         private static bool IsCababElement(char c)
             => IsNumber(c) || IsLowerAlpha(c) || c == '-';
 
-        /// <summary>ValueTuple</summary>
-        internal readonly struct Value2<T1, T2>
-        {
-            public readonly T1 Item1 { get; }
-            public readonly T2 Item2 { get; }
-            public Value2(T1 t1, T2 t2)
-            {
-                Item1 = t1;
-                Item2 = t2;
-            }
-            public readonly void Deconstructor(out T1 t1, out T2 t2)
-            {
-                t1 = Item1;
-                t2 = Item2;
-            }
-        }
-
-        private static IEnumerable<Value2<int, int>> CamelSplitIndices(string s)
+        private static IEnumerable<InternalTuple<int, int>> CamelSplitIndices(string s)
         {
             int prev = 0;
-            for(int i = 1; i < s.Length; ++i)
+            for (int i = 1; i < s.Length; ++i)
             {
                 if (IsUpperAlpha(s[i]))
                 {
-                    yield return new Value2<int, int>(prev, i);
+                    yield return new InternalTuple<int, int>(prev, i);
                     prev = i;
                 }
             }
-            yield return new Value2<int, int>(prev, s.Length);
+            yield return new InternalTuple<int, int>(prev, s.Length);
+        }
+        private static string ToUpperHeadOnly(string s)
+        {
+            if (s.Length == 0) return s;
+            return char.ToUpper(
+                s[0], System.Globalization.CultureInfo.InvariantCulture) +
+                s.Substring(1);
         }
 
+        /// <summary>Is PascalCase or camelCase?</summary>
         public static bool IsPascalOrCamelCase(string s)
             => s.All(IsAlnum) && (s.Length == 0 || IsAlpha(s[0]));
         /// <summary>Is argument cabab-case?</summary>
@@ -130,13 +122,9 @@ namespace SharpArgParse
                 .Select(be => low.Substring(be.Item1, be.Item2 - be.Item1))
                 );
         }
-        private static string ToUpperHeadOnly(string s)
-        {
-            if (s.Length == 0) return s;
-            return char.ToUpper(
-                s[0], System.Globalization.CultureInfo.InvariantCulture) +
-                s.Substring(1);
-        }
+        /// <summary>
+        /// convert from kebab-case to PascalCase.
+        /// </summary>
         public static string KebabCaseToPascalCase(string s)
         {
             if (!IsKebabCase(s))
@@ -149,135 +137,46 @@ namespace SharpArgParse
             return string.Join("", ret);
         }
     }
-    internal static class ArgParse<TOptions> where TOptions : new()
+
+    /// <summary>ValueTuple</summary>
+    internal readonly struct InternalTuple<T1, T2>
     {
-        public static System.Reflection.PropertyInfo[] GetPropertiesInfo()
+        public readonly T1 Item1 { get; }
+        public readonly T2 Item2 { get; }
+        public InternalTuple(T1 t1, T2 t2)
         {
-            return typeof(TOptions).GetProperties(
-                System.Reflection.BindingFlags.Public |
-                System.Reflection.BindingFlags.Instance |
-                System.Reflection.BindingFlags.SetProperty |
-                System.Reflection.BindingFlags.GetProperty |
-                0);
+            Item1 = t1;
+            Item2 = t2;
         }
-
-        private static IEnumerable<Trigger> ToTrigger(PropertyInfo prop) {
-            yield return new Trigger(prop);
-            foreach (var attr in prop.GetCustomAttributes<AliasAttribute>())
-            {
-                yield return new Trigger(prop, attr);
-            }
-        }
-        private class Trigger
+        public readonly void Deconstructor(out T1 t1, out T2 t2)
         {
-            public static Trigger Empty = new Trigger(
-                typeof(Trigger).GetProperty(nameof(TriggerName))
-                ?? throw new InternalException(""));
-            public static bool IsEmpty(Trigger t) => ReferenceEquals(t, Empty);
-
-            public PropertyInfo TargetProperty { get; }
-            public Type ElementType { get; }
-            public bool IsMultiArgument { get; }
-            public bool RecieveArgument { get; }
-            public string TriggerName { get; }
-            public char ShortTrigger { get; }
-            public bool IsShortTrigger => ShortTrigger != '\0';
-            private static readonly object UnsetValue = new object();
-            private readonly object _backingTargetValue;
-            public object TargetValue
+            t1 = Item1;
+            t2 = Item2;
+        }
+    }
+    internal static class Utility
+    {
+        /// <summary>
+        /// convert to <paramref name="t"/> type.
+        /// </summary>
+        /// <exception cref="SettingMisstakeException"></exception>
+        public static object ConvertTo(Type t, string s)
+        {
+            if (t == typeof(sbyte)) return Convert.ToSByte(s);
+            if (t == typeof(short)) return Convert.ToInt16(s);
+            if (t == typeof(int)) return Convert.ToInt32(s);
+            if (t == typeof(long)) return Convert.ToInt64(s);
+            if (t == typeof(byte)) return Convert.ToByte(s);
+            if (t == typeof(ushort)) return Convert.ToUInt16(s);
+            if (t == typeof(uint)) return Convert.ToUInt32(s);
+            if (t == typeof(ulong)) return Convert.ToUInt64(s);
+            if (t == typeof(string)) return s;
+            if (t.IsEnum)
             {
-                get
-                {
-                    if (ReferenceEquals(UnsetValue, _backingTargetValue))
-                    {
-                        throw new InternalException(
-                            $"{TargetProperty.Name}({TriggerName}):" +
-                            "TargetValue is not available."
-                            );
-                    }
-                    return _backingTargetValue;
-                }
+                string k = StringConvert.KebabCaseToPascalCase(s);
+                return Enum.Parse(t, k);
             }
-            public Trigger(PropertyInfo targetProperty)
-            {
-                bool isbool = targetProperty.PropertyType == typeof(bool);
-                _backingTargetValue = isbool ? true : UnsetValue;
-                RecieveArgument = !isbool;
-                TargetProperty = targetProperty;
-
-                // T[] => T, T => T
-                Type type = TargetProperty.PropertyType;
-                IsMultiArgument = type.IsArray;
-                ElementType = IsMultiArgument ?
-                    type.GetElementType() ?? throw new InternalException("") :
-                    type;
-
-                ShortTrigger = '\0';
-                TriggerName = "--" + InternalUtility.ToKebabCase(targetProperty.Name);
-            }
-            public Trigger(PropertyInfo targetProperty, AliasAttribute alias)
-                : this(targetProperty)
-            {
-                if (alias.IsShortAlias)
-                {
-                    ShortTrigger = alias.ShortAlias;
-                }
-                else
-                {
-                    TriggerName = "--" + InternalUtility.ToKebabCase(alias.Alias);
-                }
-
-                if (alias is ValueAliasAttribute valias)
-                {
-                    RecieveArgument = false;
-                    _backingTargetValue = valias.Value;
-                }
-            }
-            private void ApplyValue(object options, object value)
-            {
-                if (IsMultiArgument)
-                {
-                    // [1,2,3] => [1,2,3,value]
-                    Array old = (Array)(TargetProperty.GetValue(options)
-                        ?? Array.CreateInstance(ElementType, 0));
-                    Array dst = Array.CreateInstance(
-                        ElementType, old.Length + 1);
-                    old.CopyTo(dst, 0);
-                    dst.SetValue(value, old.Length);
-                    TargetProperty.SetValue(options, dst);
-                }
-                else
-                {
-                    TargetProperty.SetValue(options, value);
-                }
-            }
-            public void Apply(object options)
-                => ApplyValue(options, _backingTargetValue);
-            public void Apply(object options, string stringValue)
-                => ApplyValue(options, ConvertTo(
-                    TargetProperty, ElementType, stringValue));
-
-            private static object ConvertTo(PropertyInfo pinfo, Type t, string s)
-            {
-                if (t == typeof(sbyte)) return Convert.ToSByte(s);
-                if (t == typeof(short)) return Convert.ToInt16(s);
-                if (t == typeof(int)) return Convert.ToInt32(s);
-                if (t == typeof(long)) return Convert.ToInt64(s);
-                if (t == typeof(byte)) return Convert.ToByte(s);
-                if (t == typeof(ushort)) return Convert.ToUInt16(s);
-                if (t == typeof(uint)) return Convert.ToUInt32(s);
-                if (t == typeof(ulong)) return Convert.ToUInt64(s);
-                if (t == typeof(string)) return s;
-                if (t.IsEnum)
-                {
-                    string k = InternalUtility.KebabCaseToPascalCase(s);
-                    return Enum.Parse(t, k);
-                }
-                throw new SettingMisstakeException(
-                    $"{pinfo.Name}: " +
-                    $"Unsupported type: " +
-                    $"{pinfo.PropertyType.FullName}");
-            }
+            throw new ArgumentException($"Unsupported type: {t.FullName}");
         }
         public static IEnumerable<T> Chain<T>(IEnumerable<IEnumerable<T>> source)
         {
@@ -289,13 +188,136 @@ namespace SharpArgParse
                 }
             }
         }
-        private static Trigger UniqueLongTrigger(string arg, Trigger[] longs)
+    }
+    internal class Trigger
+    {
+        public static Trigger Empty = new Trigger(
+            typeof(Trigger).GetProperty(nameof(TriggerName))
+            ?? throw new InternalException(""));
+        public static bool IsEmpty(Trigger t) => ReferenceEquals(t, Empty);
+
+        public PropertyInfo TargetProperty { get; }
+        public Type ElementType { get; }
+        public bool IsMultiArgument { get; }
+        public bool RecieveArgument { get; }
+        public string TriggerName { get; }
+        public char ShortTrigger { get; }
+        public bool IsShortTrigger => ShortTrigger != '\0';
+        private static readonly object UnsetValue = new object();
+        private readonly object _backingTargetValue;
+        public object TargetValue
+        {
+            get
+            {
+                if (ReferenceEquals(UnsetValue, _backingTargetValue))
+                {
+                    throw new InternalException(
+                        $"{TargetProperty.Name}({TriggerName}):" +
+                        "TargetValue is not available."
+                        );
+                }
+                return _backingTargetValue;
+            }
+        }
+        public Trigger(PropertyInfo targetProperty)
+        {
+            bool isbool = targetProperty.PropertyType == typeof(bool);
+            _backingTargetValue = isbool ? true : UnsetValue;
+            RecieveArgument = !isbool;
+            TargetProperty = targetProperty;
+
+            // T[] => T, T => T
+            Type type = TargetProperty.PropertyType;
+            IsMultiArgument = type.IsArray;
+            ElementType = IsMultiArgument ?
+                type.GetElementType() ?? throw new InternalException("") :
+                type;
+
+            ShortTrigger = '\0';
+            TriggerName = "--" + StringConvert.ToKebabCase(targetProperty.Name);
+        }
+        public Trigger(PropertyInfo targetProperty, AliasAttribute alias)
+            : this(targetProperty)
+        {
+            if (alias.IsShortAlias)
+            {
+                ShortTrigger = alias.ShortAlias;
+            }
+            else
+            {
+                TriggerName = "--" + StringConvert.ToKebabCase(alias.Alias);
+            }
+
+            if (alias is ValueAliasAttribute valias)
+            {
+                RecieveArgument = false;
+                _backingTargetValue = valias.Value;
+            }
+        }
+        private void ApplyValue(object options, object value)
+        {
+            if (IsMultiArgument)
+            {
+                // [1,2,3] => [1,2,3,value]
+                Array old = (Array)(TargetProperty.GetValue(options)
+                    ?? Array.CreateInstance(ElementType, 0));
+                Array dst = Array.CreateInstance(
+                    ElementType, old.Length + 1);
+                old.CopyTo(dst, 0);
+                dst.SetValue(value, old.Length);
+                TargetProperty.SetValue(options, dst);
+            }
+            else
+            {
+                TargetProperty.SetValue(options, value);
+            }
+        }
+        public void Apply(object options)
+            => ApplyValue(options, _backingTargetValue);
+        public void Apply(object options, string stringValue)
+        {
+            object value;
+            try
+            {
+                value = Utility.ConvertTo(ElementType, stringValue);
+            }
+            catch (Exception ex)
+            {
+                throw new CommandLineException(
+                    $"{TriggerName}: {ex.Message}", ex);
+            }
+            ApplyValue(options, value);
+        }
+    }
+    internal class ArgumentReciever<TOptions>
+    {
+        private Trigger[] Shorts { get; }
+        private Trigger[] Longs { get; }
+        private bool AllowLater { get; }
+
+        private bool RestOnlyMode { get; set; } = false;
+        private Trigger CurrentTarget { get; set; } = Trigger.Empty;
+        private List<string> RestArgument { get; } = new List<string>();
+        // (boxed if struct) options instance
+        private object Options { get; }
+        public TOptions GetOptions() => (TOptions)Options;
+        public string[] GetRest() => RestArgument.ToArray();
+        public void Validate()
+        {
+            if (!Trigger.IsEmpty(CurrentTarget))
+            {
+                throw new CommandLineException(
+                    $"option {CurrentTarget.TriggerName} requires a value.");
+            }
+        }
+
+        private Trigger UniqueLongTrigger(string arg)
         {
             if (arg.Contains('='))
             {
                 arg = arg.Split('=', 2)[0];
             }
-            var ret = longs.Where(t => t.TriggerName.StartsWith(arg)).ToArray();
+            var ret = Longs.Where(t => t.TriggerName.StartsWith(arg)).ToArray();
             if (ret.Length == 0)
             {
                 throw new CommandLineException(
@@ -312,9 +334,9 @@ namespace SharpArgParse
             }
             return ret[0];
         }
-        private static Trigger UniqueShortTrigger(char arg, Trigger[] shorts)
+        private Trigger UniqueShortTrigger(char arg)
         {
-            var ret = shorts.Where(t => t.ShortTrigger == arg).ToArray();
+            var ret = Shorts.Where(t => t.ShortTrigger == arg).ToArray();
             if (ret.Length == 0)
             {
                 throw new CommandLineException(
@@ -330,105 +352,110 @@ namespace SharpArgParse
             }
             return ret[0];
         }
-        private class ArgumentReciever
+
+        public ArgumentReciever(
+            object options, bool allowLater, Trigger[] shorts, Trigger[] longs)
         {
-            private Trigger[] Shorts { get; }
-            private Trigger[] Longs { get; }
-            private bool AllowLater { get; }
+            Options = options;
+            AllowLater = allowLater;
+            Shorts = shorts;
+            Longs = longs;
+        }
+        public void Next(string arg)
+        {
+            Action<string> action =
+                RestOnlyMode ? RestAdd :
+                !Trigger.IsEmpty(CurrentTarget) ? RecieveRemainedArgument :
+                arg == "--" ? TerminateOption :
+                arg.StartsWith("--") ? ApplyLongOption :
+                arg.StartsWith('-') ? ApplyShortOption :
+                ApplyRestArgument;
+            action(arg);
+        }
 
-            private bool RestOnlyMode { get; set; } = false;
-            private Trigger CurrentTarget { get; set; } = Trigger.Empty;
-            private List<string> RestArgument { get; } = new List<string>();
-            // (boxed if struct) options instance
-            private object Options { get; } = new TOptions();
-            public TOptions GetOptions() => (TOptions)Options;
-            public string[] GetRest() => RestArgument.ToArray();
-            public void Validate()
+        private void RestAdd(string arg)
+            => RestArgument.Add(arg);
+        private void RecieveRemainedArgument(string arg)
+        {
+            CurrentTarget.Apply(Options, arg);
+            CurrentTarget = Trigger.Empty;
+        }
+        private void TerminateOption(string _)
+            => RestOnlyMode = true;
+        private void ApplyLongOption(string arg)
+        {
+            Trigger trigger = UniqueLongTrigger(arg);
+            if (!trigger.RecieveArgument)
             {
-                if (!Trigger.IsEmpty(CurrentTarget))
+                trigger.Apply(Options);
+                return;
+            }
+            string[] a01 = arg.Split('=', 2);
+            if (a01.Length == 2)
+            {
+                trigger.Apply(Options, a01[1]);
+            }
+            else
+            {
+                // need recieve next argument
+                CurrentTarget = trigger;
+            }
+        }
+        private void ApplyShortOption(string arg)
+        {
+            for (string s = arg.Substring(1); s.Length != 0; s = s.Substring(1))
+            {
+                Trigger t = UniqueShortTrigger(s[0]);
+                if (!t.RecieveArgument)
                 {
-                    throw new CommandLineException(
-                        $"option {CurrentTarget.TriggerName} requires a value.");
-                }
-            }
-            public ArgumentReciever(bool allowLater, Trigger[] shorts, Trigger[] longs)
-            {
-                AllowLater = allowLater;
-                Shorts = shorts;
-                Longs = longs;
-            }
-            public void Next(string arg)
-            {
-                Action<string> action =
-                    RestOnlyMode ? RestAdd :
-                    !Trigger.IsEmpty(CurrentTarget) ? RecieveRemainedArgument :
-                    arg == "--" ? TerminateOption :
-                    arg.StartsWith("--") ? ApplyLongOption :
-                    arg.StartsWith('-') ? ApplyShortOption :
-                    ApplyRestArgument;
-                action(arg);
-            }
-
-            private void RestAdd(string arg)
-                => RestArgument.Add(arg);
-            private void RecieveRemainedArgument(string arg)
-            {
-                CurrentTarget.Apply(Options, arg);
-                CurrentTarget = Trigger.Empty;
-            }
-            private void TerminateOption(string _)
-                => RestOnlyMode = true;
-            private void ApplyLongOption(string arg)
-            {
-                Trigger trigger = UniqueLongTrigger(arg, Longs);
-                if (!trigger.RecieveArgument)
-                {
-                    trigger.Apply(Options);
-                    return;
-                }
-                string[] a01 = arg.Split('=', 2);
-                if (a01.Length == 2)
-                {
-                    trigger.Apply(Options, a01[1]);
+                    // no argument option
+                    // grep -niE
+                    t.Apply(Options);
                 }
                 else
                 {
-                    // need recieve next argument
-                    CurrentTarget = trigger;
-                }
-            }
-            private void ApplyShortOption(string arg)
-            {
-                for (string s = arg.Substring(1); s.Length != 0; s = s.Substring(1))
-                {
-                    Trigger t = UniqueShortTrigger(s[0], Shorts);
-                    if (!t.RecieveArgument)
+                    // recieve argument option
+                    if (s.Length != 1)
                     {
-                        // no argument option
-                        // grep -niE
-                        t.Apply(Options);
+                        // not splited : grep -ePATTERN
+                        t.Apply(Options, s.Substring(1));
                     }
                     else
                     {
-                        // recieve argument option
-                        if (s.Length != 1)
-                        {
-                            // not splited : grep -ePATTERN
-                            t.Apply(Options, s.Substring(1));
-                        }
-                        else
-                        {
-                            // splited : grep -e PATTERN
-                            CurrentTarget = t;
-                        }
-                        return;
+                        // splited : grep -e PATTERN
+                        CurrentTarget = t;
                     }
+                    return;
                 }
             }
-            private void ApplyRestArgument(string arg)
+        }
+        private void ApplyRestArgument(string arg)
+        {
+            RestArgument.Add(arg);
+            RestOnlyMode = !AllowLater;
+        }
+    }
+}
+
+namespace SharpArgParse
+{
+    internal static class ArgParse<TOptions> where TOptions : new()
+    {
+        private static System.Reflection.PropertyInfo[] GetPropertiesInfo()
+        {
+            return typeof(TOptions).GetProperties(
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.SetProperty |
+                System.Reflection.BindingFlags.GetProperty |
+                0);
+        }
+
+        private static IEnumerable<Trigger> ToTrigger(PropertyInfo prop) {
+            yield return new Trigger(prop);
+            foreach (var attr in prop.GetCustomAttributes<AliasAttribute>())
             {
-                RestArgument.Add(arg);
-                RestOnlyMode = !AllowLater;
+                yield return new Trigger(prop, attr);
             }
         }
 
@@ -436,13 +463,14 @@ namespace SharpArgParse
             string[] args, bool allowLater = true)
         {
             var infos = GetPropertiesInfo();
-            Trigger[] triggers = Chain(infos.Select(ToTrigger)).ToArray();
+            Trigger[] triggers = Utility.Chain(infos.Select(ToTrigger)).ToArray();
 
             // TODO: validate no dup.
             Trigger[] shorts = triggers.Where(t => t.IsShortTrigger).ToArray();
             Trigger[] longs = triggers.Where(t => !t.IsShortTrigger).ToArray();
 
-            var m = new ArgumentReciever(allowLater, shorts, longs);
+            var m = new ArgumentReciever<TOptions>(
+                new TOptions(), allowLater, shorts, longs);
             foreach (string arg in args)
             {
                 m.Next(arg);
