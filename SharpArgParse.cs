@@ -443,7 +443,30 @@ namespace SharpArgParse.Internals
 
 namespace SharpArgParse
 {
-    internal static class ArgParse<TOptions> where TOptions : new()
+    /// <summary>
+    /// Parses command line option argument. 
+    /// Use <see cref="ArgParse{TOptions}.Parse(string[], bool)"/>
+    /// </summary>
+    /// <remarks>
+    /// <typeparamref name="TOptions"/> is target options class. e.g.
+    /// <code><![CDATA[
+    /// // prog.exe --target-file a.txt --export
+    /// class Options {
+    ///     public string? TargetFile { get; set; }
+    ///     public bool Export { get; set; }
+    /// }
+    /// ]]></code>
+    /// Use helper attributes: 
+    /// <see cref="AliasAttribute"/> and 
+    /// <see cref="ValueAliasAttribute"/>.
+    /// </remarks>
+    /// <typeparam name="TOptions">Target option type</typeparam>
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    static class ArgParse<TOptions> where TOptions : new()
     {
         private static System.Reflection.PropertyInfo[] GetPropertiesInfo()
         {
@@ -463,6 +486,17 @@ namespace SharpArgParse
             }
         }
 
+        /// <summary>
+        /// Parses command line option argument. 
+        /// </summary>
+        /// <param name="args">command line arguments</param>
+        /// <param name="allowLater">
+        /// allow later option then argument.
+        /// e.g. <c><![CDATA[grep PATTERN -E]]></c>
+        /// </param>
+        /// <returns>setted options and rest arguments</returns>
+        /// <exception cref="CommandLineException">invalid command line</exception>
+        /// <exception cref="SettingMisstakeException" />
         public static ParseResult<TOptions> Parse(
             string[] args, bool allowLater = true)
         {
@@ -483,37 +517,89 @@ namespace SharpArgParse
             return new ParseResult<TOptions>(m.GetOptions(), m.GetRest());
         }
     }
-    internal static class ArgParse
+    /// <summary>
+    /// Parses command line option argument. 
+    /// Use <see cref="Parse(string[], bool)"/>
+    /// </summary>
+    /// <inheritdoc cref="ArgParse{TOptions}"/>
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    static class ArgParse
     {
         // alias ArgParse<TOptions>
+        /// <inheritdoc cref="ArgParse{TOptions}.Parse(string[], bool)"/>
+        /// <typeparam name="TOptions">
+        /// <inheritdoc cref="ArgParse{TOptions}"/>
+        /// </typeparam>
         public static ParseResult<TOptions> Parse<TOptions>(
             string[] args, bool allowLater = true)
             where TOptions : new() => 
             ArgParse<TOptions>.Parse(args, allowLater);
     }
+
+    /// <summary>
+    /// Parsed results Tuple. 
+    /// </summary>
+    /// <typeparam name="TOptions">
+    /// <inheritdoc cref="ArgParse{TOptions}"/>
+    /// </typeparam>
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
     readonly struct ParseResult<TOptions>
     {
+        /// <summary>result</summary>
         public TOptions Options { get; }
+        /// <summary>rest arguments</summary>
         public string[] RestArgs { get; }
+        /// <summary/>
         public ParseResult(TOptions options, string[] restArgs)
         {
             Options = options;
             RestArgs = restArgs;
         }
+        /// <summary>for <c>var (opts, rest) = ...;</c></summary>
         public readonly void Deconstruct(out TOptions options, out string[] restArgs)
         {
             options = Options;
             restArgs = RestArgs;
         }
     }
-
+    /// <summary>
+    /// sets option alias
+    /// </summary>
+    /// <remarks>
+    /// e.g. <code><![CDATA[
+    /// class Options {
+    ///     // prog.exe --alias-style -B -c
+    ///     [Alias("alias-style")]
+    ///     [Alias('B')]
+    ///     [Alias('c')]
+    ///     public bool Flag { get; set; }
+    /// }
+    /// ]]></code>
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    internal class AliasAttribute : Attribute
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    class AliasAttribute : Attribute
     {
+        /// <summary/>
         public string Alias { get; }
+        /// <summary/>
         public char ShortAlias { get; }
+        /// <summary/>
         public bool IsShortAlias { get; }
 
+        /// <param name="alias">long option style alias</param>
         public AliasAttribute(string alias)
         {
             if (alias is null) throw new ArgumentNullException(nameof(alias));
@@ -521,6 +607,7 @@ namespace SharpArgParse
             ShortAlias = '\0';
             IsShortAlias = false;
         }
+        /// <param name="shortAlias">short option style alias</param>
         public AliasAttribute(char shortAlias)
         {
             Alias = "";
@@ -528,16 +615,46 @@ namespace SharpArgParse
             IsShortAlias = true;
         }
     }
+
+    /// <summary>
+    /// specify value to target property
+    /// </summary>
+    /// <remarks>
+    /// e.g. <code><![CDATA[
+    /// class Options {
+    ///     // prog.exe --mode sorting-network --net -n
+    ///     [ValueAlias("net", SortMode.SortingNetwork)]
+    ///     [ValueAlias('n', SortMode.SortingNetwork)]
+    ///     public SortMode Mode { get; set; }
+    ///     enum SortMode {
+    ///         Bubble,
+    ///         Stooge,
+    ///         Bogo,
+    ///         SortingNetwork,
+    ///     }
+    /// }
+    /// ]]></code>
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
-    internal class ValueAliasAttribute : AliasAttribute
+#if ARGPARCE_EXPORT
+    public
+#else
+    internal
+#endif
+    class ValueAliasAttribute : AliasAttribute
     {
+        /// <summary/>
         public object Value { get; }
+        /// <inheritdoc cref="AliasAttribute(string)"/>
+        /// <param name="value">setting value</param>
         public ValueAliasAttribute(string alias, object value) 
             : base(alias)
         {
             if (value is null) throw new ArgumentNullException(nameof(value));
             Value = value;
         }
+        /// <inheritdoc cref="AliasAttribute(char)"/>
+        /// <inheritdoc cref="ValueAliasAttribute(string, object)"/>
         public ValueAliasAttribute(char shortAlias, object value) 
             : base(shortAlias)
         {
@@ -547,38 +664,41 @@ namespace SharpArgParse
     }
 
     // exceptions
+    /// <summary>this librarys internal error</summary>
+    internal class InternalException : Exception
+    {
+        /// <inheritdoc cref="Exception(string)"/>
+        internal InternalException(string message) : base(message) { }
+        /// <inheritdoc cref="Exception(string, Exception)"/>
+        internal InternalException(string message, Exception innerException)
+            : base(message, innerException) { }
+    }
+    /// <summary>using this library incorrectly</summary>
 #if ARGPARCE_EXPORT
     public
 #else
     internal
 #endif
-    abstract class ArgParseException : Exception
+    class SettingMisstakeException : Exception
     {
-        internal ArgParseException(string message) : base(message) { }
-        internal ArgParseException(string message, Exception innerException)
-            : base(message, innerException) { }
-    }
-    internal class InternalException : ArgParseException
-    {
-        internal InternalException(string message) : base(message) { }
-        internal InternalException(string message, Exception innerException)
-            : base(message, innerException) { }
-    }
-    internal class SettingMisstakeException : ArgParseException
-    {
+        /// <inheritdoc cref="Exception(string)"/>
         internal SettingMisstakeException(string message) : base(message) { }
+        /// <inheritdoc cref="Exception(string, Exception)"/>
         internal SettingMisstakeException(string message, Exception innerException)
             : base(message, innerException) { }
     }
 
+    /// <summary>invalid commandline</summary>
 #if ARGPARCE_EXPORT
     public
 #else
     internal
 #endif
-    class CommandLineException : ArgParseException
+    class CommandLineException : Exception
     {
+        /// <inheritdoc cref="Exception(string)"/>
         internal CommandLineException(string message) : base(message) { }
+        /// <inheritdoc cref="Exception(string, Exception)"/>
         internal CommandLineException(string message, Exception innerException)
             : base(message, innerException) { }
     }
