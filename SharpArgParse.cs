@@ -330,84 +330,106 @@ namespace SharpArgParse
             }
             return ret[0];
         }
-        private static ParseResult<TOptions> Core(
-            string[] args, bool allowLater, Trigger[] shorts, Trigger[] longs)
+        private class ArgumentReciever
         {
-            // TODO: refactor to class-Core state machine.
-            bool restonly = false;
-            Trigger target = Trigger.Empty;
-            object boxed_options = new TOptions();
-            var rest = new List<string>();
+            private Trigger[] Shorts { get; }
+            private Trigger[] Longs { get; }
+            private bool AllowLater { get; }
 
-            foreach (string a in args)
+            private bool RestOnlyMode { get; set; } = false;
+            private Trigger CurrentTarget { get; set; } = Trigger.Empty;
+            private List<string> RestArgument { get; } = new List<string>();
+            // (boxed if struct) options instance
+            private object Options { get; } = new TOptions();
+            public TOptions GetOptions() => (TOptions)Options;
+            public string[] GetRest() => RestArgument.ToArray();
+            public void Validate()
             {
-                if (restonly)
+                if (!Trigger.IsEmpty(CurrentTarget))
                 {
-                    rest.Add(a);
-                    continue;
+                    throw new CommandLineException(
+                        $"option {CurrentTarget.TriggerName} requires a value.");
                 }
-                if (!Trigger.IsEmpty(target))
+            }
+            public ArgumentReciever(bool allowLater, Trigger[] shorts, Trigger[] longs)
+            {
+                AllowLater = allowLater;
+                Shorts = shorts;
+                Longs = longs;
+            }
+            public void Next(string arg)
+            {
+                Action<string> action =
+                    RestOnlyMode ? RestAdd :
+                    !Trigger.IsEmpty(CurrentTarget) ? RecieveRemainedArgument :
+                    arg == "--" ? TerminateOption :
+                    arg.StartsWith("--") ? ApplyLongOption :
+                    arg.StartsWith('-') ? ApplyShortOption :
+                    ApplyRestArgument;
+                action(arg);
+            }
+
+            private void RestAdd(string arg)
+                => RestArgument.Add(arg);
+            private void RecieveRemainedArgument(string arg)
+            {
+                CurrentTarget.Apply(Options, arg);
+                CurrentTarget = Trigger.Empty;
+            }
+            private void TerminateOption(string _)
+                => RestOnlyMode = true;
+            private void ApplyLongOption(string arg)
+            {
+                Trigger trigger = UniqueLongTrigger(arg, Longs);
+                if (!trigger.RecieveArgument)
                 {
-                    target.Apply(boxed_options, a);
-                    target = Trigger.Empty;
-                    continue;
+                    trigger.Apply(Options);
+                    return;
                 }
-                if (a == "--")
+                string[] a01 = arg.Split('=', 2);
+                if (a01.Length == 2)
                 {
-                    restonly = true;
-                    continue;
+                    trigger.Apply(Options, a01[1]);
                 }
-                if (a.StartsWith("--"))
+                else
                 {
-                    Trigger trigger = UniqueLongTrigger(a, longs);
-                    if (!trigger.RecieveArgument)
+                    // need recieve next argument
+                    CurrentTarget = trigger;
+                }
+            }
+            private void ApplyShortOption(string arg)
+            {
+                for (string s = arg.Substring(1); s.Length != 0; s = s.Substring(1))
+                {
+                    Trigger t = UniqueShortTrigger(s[0], Shorts);
+                    if (!t.RecieveArgument)
                     {
-                        trigger.Apply(boxed_options);
-                        continue;
-                    }
-                    string[] argelement = a.Split('=', 2);
-                    if (argelement.Length == 2)
-                    {
-                        trigger.Apply(boxed_options, argelement[1]);
-                        continue;
+                        // no argument option
+                        // grep -niE
+                        t.Apply(Options);
                     }
                     else
                     {
-                        // need recieve next argument
-                        target = trigger;
-                        continue;
-                    }
-                }
-                if (a.StartsWith('-') && a.Length != 1)
-                {
-                    for (string s = a.Substring(1); s.Length != 0; s = s.Substring(1))
-                    {
-                        Trigger t = UniqueShortTrigger(s[0], shorts);
-                        if (!t.RecieveArgument)
+                        // recieve argument option
+                        if (s.Length != 1)
                         {
-                            t.Apply(boxed_options);
-                            continue;
+                            // not splited : grep -ePATTERN
+                            t.Apply(Options, s.Substring(1));
                         }
                         else
                         {
-                            if (s.Length != 1)
-                            {
-                                t.Apply(boxed_options, s.Substring(1));
-                            }
-                            else
-                            {
-                                target = t;
-                            }
-                            break;
+                            // splited : grep -e PATTERN
+                            CurrentTarget = t;
                         }
+                        return;
                     }
-                    continue;
                 }
-                rest.Add(a);
-                restonly = !allowLater;
             }
-            return new ParseResult<TOptions>(
-                (TOptions)boxed_options, rest.ToArray());
+            private void ApplyRestArgument(string arg)
+            {
+                RestArgument.Add(arg);
+                RestOnlyMode = !AllowLater;
+            }
         }
 
         public static ParseResult<TOptions> Parse(
@@ -419,7 +441,14 @@ namespace SharpArgParse
             // TODO: validate no dup.
             Trigger[] shorts = triggers.Where(t => t.IsShortTrigger).ToArray();
             Trigger[] longs = triggers.Where(t => !t.IsShortTrigger).ToArray();
-            return Core(args, allowLater, shorts, longs);
+
+            var m = new ArgumentReciever(allowLater, shorts, longs);
+            foreach (string arg in args)
+            {
+                m.Next(arg);
+            }
+            m.Validate();
+            return new ParseResult<TOptions>(m.GetOptions(), m.GetRest());
         }
     }
     internal static class ArgParse
