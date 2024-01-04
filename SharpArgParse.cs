@@ -39,6 +39,9 @@
 //         Cannot annotate nullable like `string? Value`.
 //       * ValueTuple (only net47 or later)
 
+// TODO: auto generate help.
+// TODO: call help-mode: prog.exe --help
+
 #pragma warning disable IDE0290 // C#12: primary constructor
 #pragma warning disable CA1510  // C#10: ArgumentNullException.ThrowIfNull
 #pragma warning disable IDE0251 // C#8: readonly instance members
@@ -258,6 +261,7 @@ namespace SharpArgParse.Internals
         {
             if (IsMultiArgument)
             {
+                // TODO: make T[] every time: O(N^2) => use List<T>: O(N)
                 // [1,2,3] => [1,2,3,value]
                 Array old = (Array)(TargetProperty.GetValue(options)
                     ?? Array.CreateInstance(ElementType, 0));
