@@ -1,4 +1,4 @@
-/* SharpArgParse
+/* SharpArgParse v0.9.1-dev
  * Copyright (c) 2024 mokabe-yn <okabe_m@hmi.aitech.ac.jp>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining
