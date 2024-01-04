@@ -105,7 +105,7 @@ namespace SharpArgParse
         /// <remarks>
         /// cabab-case-is-delimited-string-by-hyphen.
         /// </remarks>
-        public static bool IsCebabCase(string s)
+        public static bool IsKebabCase(string s)
         {
             if (s.Length == 0) return true;
             if (s[0] == '-') return false;
@@ -118,7 +118,7 @@ namespace SharpArgParse
         /// </summary>
         public static string ToKebabCase(string s)
         {
-            if (IsCebabCase(s)) return s;
+            if (IsKebabCase(s)) return s;
             if (!IsPascalOrCamelCase(s))
             {
                 throw new ArgumentException(
@@ -129,6 +129,24 @@ namespace SharpArgParse
                 CamelSplitIndices(s)
                 .Select(be => low.Substring(be.Item1, be.Item2 - be.Item1))
                 );
+        }
+        private static string ToUpperHeadOnly(string s)
+        {
+            if (s.Length == 0) return s;
+            return char.ToUpper(
+                s[0], System.Globalization.CultureInfo.InvariantCulture) +
+                s.Substring(1);
+        }
+        public static string KebabCaseToPascalCase(string s)
+        {
+            if (!IsKebabCase(s))
+            {
+                throw new ArgumentException(
+                    "string is not kebab-case", nameof(s));
+            }
+            var ret = s.Split('-')
+                .Select(ToUpperHeadOnly);
+            return string.Join("", ret);
         }
     }
     internal static class ArgParse<TOptions> where TOptions : new()
@@ -141,13 +159,6 @@ namespace SharpArgParse
                 System.Reflection.BindingFlags.SetProperty |
                 System.Reflection.BindingFlags.GetProperty |
                 0);
-        }
-        private static void Update(ref TOptions options)
-        {
-
-        }
-        private static void CreateActionTable()
-        {
         }
 
         private static IEnumerable<Trigger> ToTrigger(PropertyInfo prop) {
@@ -165,6 +176,8 @@ namespace SharpArgParse
             public static bool IsEmpty(Trigger t) => ReferenceEquals(t, Empty);
 
             public PropertyInfo TargetProperty { get; }
+            public Type ElementType { get; }
+            public bool IsMultiArgument { get; }
             public bool RecieveArgument { get; }
             public string TriggerName { get; }
             public char ShortTrigger { get; }
@@ -187,9 +200,17 @@ namespace SharpArgParse
             }
             public Trigger(PropertyInfo targetProperty)
             {
-                _backingTargetValue = UnsetValue;
-                RecieveArgument = targetProperty.PropertyType != typeof(bool);
+                bool isbool = targetProperty.PropertyType == typeof(bool);
+                _backingTargetValue = isbool ? true : UnsetValue;
+                RecieveArgument = !isbool;
                 TargetProperty = targetProperty;
+
+                // T[] => T, T => T
+                Type type = TargetProperty.PropertyType;
+                IsMultiArgument = type.IsArray;
+                ElementType = IsMultiArgument ?
+                    type.GetElementType() ?? throw new InternalException("") :
+                    type;
 
                 ShortTrigger = '\0';
                 TriggerName = "--" + InternalUtility.ToKebabCase(targetProperty.Name);
@@ -212,19 +233,32 @@ namespace SharpArgParse
                     _backingTargetValue = valias.Value;
                 }
             }
+            private void ApplyValue(object options, object value)
+            {
+                if (IsMultiArgument)
+                {
+                    // [1,2,3] => [1,2,3,value]
+                    Array old = (Array)(TargetProperty.GetValue(options)
+                        ?? Array.CreateInstance(ElementType, 0));
+                    Array dst = Array.CreateInstance(
+                        ElementType, old.Length + 1);
+                    old.CopyTo(dst, 0);
+                    dst.SetValue(value, old.Length);
+                    TargetProperty.SetValue(options, dst);
+                }
+                else
+                {
+                    TargetProperty.SetValue(options, value);
+                }
+            }
             public void Apply(object options)
-            {
-                // TODO: 複数受け付けるオプションへの対応
-                TargetProperty.SetValue(options, _backingTargetValue);
-            }
+                => ApplyValue(options, _backingTargetValue);
             public void Apply(object options, string stringValue)
+                => ApplyValue(options, ConvertTo(
+                    TargetProperty, ElementType, stringValue));
+
+            private static object ConvertTo(PropertyInfo pinfo, Type t, string s)
             {
-                var value = ConvertTo(TargetProperty, stringValue);
-                TargetProperty.SetValue(options, value);
-            }
-            private static object ConvertTo(PropertyInfo pinfo, string s)
-            {
-                Type t = pinfo.PropertyType;
                 if (t == typeof(sbyte)) return Convert.ToSByte(s);
                 if (t == typeof(short)) return Convert.ToInt16(s);
                 if (t == typeof(int)) return Convert.ToInt32(s);
@@ -234,6 +268,11 @@ namespace SharpArgParse
                 if (t == typeof(uint)) return Convert.ToUInt32(s);
                 if (t == typeof(ulong)) return Convert.ToUInt64(s);
                 if (t == typeof(string)) return s;
+                if (t.IsEnum)
+                {
+                    string k = InternalUtility.KebabCaseToPascalCase(s);
+                    return Enum.Parse(t, k);
+                }
                 throw new SettingMisstakeException(
                     $"{pinfo.Name}: " +
                     $"Unsupported type: " +
