@@ -26,7 +26,7 @@ internal class ArgumentReciever<TOptions>
     {
         if (arg.Contains('='))
         {
-            arg = arg.Split('=', 2)[0];
+            arg = arg.Split(new char[] { '=' }, 2)[0];
         }
         var ret = Longs.Where(t => t.TriggerName.StartsWith(arg)).ToArray();
         if (ret.Length == 0)
@@ -79,7 +79,7 @@ internal class ArgumentReciever<TOptions>
             !Trigger.IsEmpty(CurrentTarget) ? RecieveRemainedArgument :
             arg == "--" ? TerminateOption :
             arg.StartsWith("--") ? ApplyLongOption :
-            arg.StartsWith('-') ? ApplyShortOption :
+            arg.StartsWith("-") ? ApplyShortOption :
             ApplyRestArgument;
         action(arg);
     }
@@ -101,7 +101,7 @@ internal class ArgumentReciever<TOptions>
             trigger.Apply(Options);
             return;
         }
-        string[] a01 = arg.Split('=', 2);
+        string[] a01 = arg.Split(new char[] { '=' }, 2);
         if (a01.Length == 2)
         {
             trigger.Apply(Options, a01[1]);

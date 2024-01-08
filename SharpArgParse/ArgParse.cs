@@ -40,7 +40,7 @@ static class ArgParse<TOptions> where TOptions : new()
     private static IEnumerable<Trigger> ToTrigger(PropertyInfo prop)
     {
         yield return new Trigger(prop);
-        foreach (var attr in prop.GetCustomAttributes<AliasAttribute>())
+        foreach (var attr in (AliasAttribute[])prop.GetCustomAttributes(typeof(AliasAttribute), true))
         {
             yield return new Trigger(prop, attr);
         }

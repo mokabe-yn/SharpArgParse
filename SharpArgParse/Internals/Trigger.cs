@@ -73,17 +73,17 @@ internal class Trigger
         {
             // TODO: make T[] every time: O(N^2) => use List<T>: O(N)
             // [1,2,3] => [1,2,3,value]
-            Array old = (Array)(TargetProperty.GetValue(options)
+            Array old = (Array)(TargetProperty.GetValue(options, null)
                 ?? Array.CreateInstance(ElementType, 0));
             Array dst = Array.CreateInstance(
                 ElementType, old.Length + 1);
             old.CopyTo(dst, 0);
             dst.SetValue(value, old.Length);
-            TargetProperty.SetValue(options, dst);
+            TargetProperty.SetValue(options, dst, null);
         }
         else
         {
-            TargetProperty.SetValue(options, value);
+            TargetProperty.SetValue(options, value, null);
         }
     }
     public void Apply(object options)
