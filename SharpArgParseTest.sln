@@ -3,12 +3,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpArgParseTest", "SharpArgParseTest\SharpArgParseTest.csproj", "{FBA29762-6340-4085-8F32-DE80F273C32A}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ソリューション項目", "ソリューション項目", "{C613DF88-6DAB-4179-BB44-1AD3A5222BB2}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpArgParse", "SharpArgParse\SharpArgParse.csproj", "{ED5B0820-91CB-4500-94FE-1A67A0A4375F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpArgParseTest", "SharpArgParseTest\SharpArgParseTest.csproj", "{FBA29762-6340-4085-8F32-DE80F273C32A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -16,6 +18,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{ED5B0820-91CB-4500-94FE-1A67A0A4375F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ED5B0820-91CB-4500-94FE-1A67A0A4375F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ED5B0820-91CB-4500-94FE-1A67A0A4375F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ED5B0820-91CB-4500-94FE-1A67A0A4375F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FBA29762-6340-4085-8F32-DE80F273C32A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FBA29762-6340-4085-8F32-DE80F273C32A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FBA29762-6340-4085-8F32-DE80F273C32A}.Release|Any CPU.ActiveCfg = Release|Any CPU
