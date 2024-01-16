@@ -10,6 +10,7 @@ internal class Program
             targets = targets
                 .Select(t => Recursive(t, opts.Exclude))
                 .Chain()
+                .Where(p => p.EndsWith(".cs"))
                 .ToArray();
         }
         List<string> usings = [];
@@ -38,7 +39,7 @@ internal class Program
 
     static IEnumerable<string> RecursiveCore(string targetpath, string[] excludes)
     {
-        foreach (var p in Directory.EnumerateFiles(targetpath))
+        foreach (var p in Directory.EnumerateFileSystemEntries(targetpath))
         {
             if (excludes.Contains(Path.GetFileName(p)))
             {
@@ -46,9 +47,9 @@ internal class Program
             }
 
             // file type only
-            if (File.Exists(targetpath))
+            if (File.Exists(p) && !Directory.Exists(p))
             {
-                yield return targetpath;
+                yield return p;
                 continue;
             }
             // recursive
@@ -71,7 +72,7 @@ file static class Ex
 {
     public static IEnumerable<T> Chain<T>(this IEnumerable<IEnumerable<T>> source)
     {
-        foreach( var x in source)
+        foreach(var x in source)
         {
             foreach(var y in x)
             {
