@@ -12,7 +12,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpArgParse", "SharpArgPa
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SharpArgParseTest", "SharpArgParseTest\SharpArgParseTest.csproj", "{FBA29762-6340-4085-8F32-DE80F273C32A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MergeSharpSource", "MergeSharpSource\MergeSharpSource.csproj", "{093F5E8F-72B9-4EE9-833D-1AC3AB61144D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MergeSharpSource", "MergeSharpSource\MergeSharpSource.csproj", "{093F5E8F-72B9-4EE9-833D-1AC3AB61144D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpArgParseBuildTest", "SharpArgParseBuildTest\SharpArgParseBuildTest.csproj", "{353855E7-D5A5-43F3-BF9E-DC11C8ED57C2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{093F5E8F-72B9-4EE9-833D-1AC3AB61144D} = {093F5E8F-72B9-4EE9-833D-1AC3AB61144D}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,6 +37,10 @@ Global
 		{093F5E8F-72B9-4EE9-833D-1AC3AB61144D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{093F5E8F-72B9-4EE9-833D-1AC3AB61144D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{093F5E8F-72B9-4EE9-833D-1AC3AB61144D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{353855E7-D5A5-43F3-BF9E-DC11C8ED57C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{353855E7-D5A5-43F3-BF9E-DC11C8ED57C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{353855E7-D5A5-43F3-BF9E-DC11C8ED57C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{353855E7-D5A5-43F3-BF9E-DC11C8ED57C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
