@@ -5,6 +5,10 @@ internal class CodeJournal
     private readonly List<string> _usings = [];
     private readonly List<string> _codes = [];
 
+    public IEnumerable<string> GetWarningConfig()
+    {
+        return ["#pragma warning disable"]; // all disable
+    }
     public IEnumerable<string> GetUsings()
         => _usings
         .ToHashSet()
@@ -12,9 +16,18 @@ internal class CodeJournal
         ;
     public IEnumerable<string> GetCodes()
         => _codes;
-    public void Add(string line)
+
+    private List<string>? SelectTarget(string line)
     {
-        (line.StartsWith("using") ? _usings : _codes)
-            .Add(line);
+        if (line.StartsWith("using"))
+        {
+            return _usings;
+        }
+        if (line.StartsWith("#pragma warning"))
+        {
+            return null; // discard
+        }
+        return _codes;
     }
+    public void Add(string line) => SelectTarget(line)?.Add(line);
 }

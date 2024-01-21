@@ -24,6 +24,7 @@ internal class Program
         var dst = sw ?? Console.Out;
 
         IEnumerable<string>[] outputs = [
+            cj.GetWarningConfig(),
             cj.GetUsings(),
             cj.GetCodes(),
         ];
