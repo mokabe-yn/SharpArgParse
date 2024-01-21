@@ -4,7 +4,8 @@ namespace SharpArgParseTest;
 [TestClass]
 public class EnumValue
 {
-    enum E { 
+    enum E
+    {
         A, B, C, D, E,
         MultiWord,
     }

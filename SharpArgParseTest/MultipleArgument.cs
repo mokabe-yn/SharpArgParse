@@ -1,5 +1,4 @@
 ﻿using SharpArgParse;
-using System.Linq;
 namespace SharpArgParseTest;
 
 

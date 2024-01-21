@@ -11,7 +11,7 @@ internal class Program
         foreach (string path in files)
         {
             using var sr = path != "-" ? new StreamReader(path) : null;
-            foreach(string line in FileReadWrite.ReadLines(sr ?? Console.In))
+            foreach (string line in FileReadWrite.ReadLines(sr ?? Console.In))
             {
                 cj.Add(line);
             }
