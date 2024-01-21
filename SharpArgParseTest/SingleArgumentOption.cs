@@ -53,5 +53,5 @@ public class SingleArgumentOption
         ]);
         Assert.AreEqual(opts.Argument, "--argument");
     }
-    
+
 }
