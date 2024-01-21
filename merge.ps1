@@ -27,7 +27,12 @@ Start-Process -FilePath $merger -Wait -NoNewWindow -ArgumentList @(
     "-r",
     "--exclude", "bin",
     "--exclude", "obj",
+    "--display-source",
     "-o", $dst)
 
+if (!$?) {
+    Remove-Item $version_tmp
+    exit 1
+}
 Remove-Item $version_tmp
 echo "output to $dst"

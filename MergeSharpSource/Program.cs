@@ -10,6 +10,10 @@ internal class Program
         CodeJournal cj = new();
         foreach (string path in files)
         {
+            if (opts.DisplaySource)
+            {
+                cj.Add("// file: " + path);
+            }
             using var sr = path != "-" ? new StreamReader(path) : null;
             foreach (string line in FileReadWrite.ReadLines(sr ?? Console.In))
             {

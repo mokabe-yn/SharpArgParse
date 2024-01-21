@@ -4,6 +4,7 @@ internal class Options
 {
     // for license or readme
     public string[] EmbedText { get; set; } = [];
+    public bool DisplaySource { get; set; }
     public string[] Exclude { get; set; } = [];
     [SharpArgParse.Alias('r')]
     public bool Recursive { get; set; }
