@@ -10,9 +10,11 @@ internal class Program
         CodeJournal cj = new();
         foreach (string path in files)
         {
-            using StreamReader sr = new(path);
+            using var sr = path != "-" ? new StreamReader(path) : null;
+            var src = sr ?? Console.In;
+
             string? line;
-            while ((line = sr.ReadLine()) is not null)
+            while ((line = src.ReadLine()) is not null)
             {
                 cj.Add(line);
             }
