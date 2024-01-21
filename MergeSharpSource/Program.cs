@@ -18,16 +18,20 @@ internal class Program
             }
         }
 
+
+        // output
+        using TextWriter? sw = opts.Output != "-" ? new StreamWriter(opts.Output) : null;
+        var dst = sw ?? Console.Out;
+
         IEnumerable<string>[] outputs = [
             cj.GetUsings(),
             cj.GetCodes(),
         ];
         foreach (string line in outputs.Chain())
         {
-            Console.WriteLine(line);
+            dst.WriteLine(line);
         }
         return 0;
     }
 
 }
-
