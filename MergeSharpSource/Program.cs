@@ -11,10 +11,7 @@ internal class Program
         foreach (string path in files)
         {
             using var sr = path != "-" ? new StreamReader(path) : null;
-            var src = sr ?? Console.In;
-
-            string? line;
-            while ((line = src.ReadLine()) is not null)
+            foreach(string line in FileReadWrite.ReadLines(sr ?? Console.In))
             {
                 cj.Add(line);
             }
@@ -22,8 +19,17 @@ internal class Program
 
 
         // output
-        using TextWriter? sw = opts.Output != "-" ? new StreamWriter(opts.Output) : null;
+        using var sw = opts.Output != "-" ? new StreamWriter(opts.Output) : null;
         var dst = sw ?? Console.Out;
+
+        foreach (var path in opts.EmbedText)
+        {
+            using var sr = path != "-" ? new StreamReader(path) : null;
+            foreach (string line in FileReadWrite.ReadLines(sr ?? Console.In))
+            {
+                dst.WriteLine("// " + line);
+            }
+        }
 
         IEnumerable<string>[] outputs = [
             cj.GetWarningConfig(),
