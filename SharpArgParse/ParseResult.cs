@@ -18,7 +18,7 @@
         public TOptions Options { get; }
         /// <summary>rest arguments</summary>
         public string[] RestArgs { get; }
-        /// <summary/>
+        /// <summary>create new instance</summary>
         public ParseResult(TOptions options, string[] restArgs)
         {
             Options = options;

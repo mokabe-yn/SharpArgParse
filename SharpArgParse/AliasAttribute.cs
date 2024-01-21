@@ -24,11 +24,12 @@ namespace SharpArgParse
 #endif
     class AliasAttribute : Attribute
     {
-        /// <summary/>
+        /// <summary>long option style alias</summary>
+        /// <remarks>e.g. <c>"another-style"</c></remarks>
         public string Alias { get; }
-        /// <summary/>
+        /// <summary>short option style alias</summary>
         public char ShortAlias { get; }
-        /// <summary/>
+        /// <summary>alias mode is short</summary>
         public bool IsShortAlias { get; }
 
         /// <param name="alias">long option style alias</param>

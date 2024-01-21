@@ -29,9 +29,10 @@ namespace SharpArgParse
 #endif
     class ValueAliasAttribute : AliasAttribute
     {
-        /// <summary/>
+        /// <summary>setting value</summary>
         public object Value { get; }
         /// <inheritdoc cref="AliasAttribute(string)"/>
+        /// <param name="alias">long option style alias</param>
         /// <param name="value">setting value</param>
         public ValueAliasAttribute(string alias, object value)
             : base(alias)

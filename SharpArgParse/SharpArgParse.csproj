@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <DefineConstants>$(DefineConstants);ARGPARCE_EXPORT</DefineConstants>
     <Version>0.9.2</Version>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
 
   <!-- for backport .net40/C#7.3 -->
