@@ -8,7 +8,7 @@ internal class Program
         string[] files = FileNameNormalize.Normalize(targets, opts);
 
         CodeJournal cj = new();
-        foreach (string path in targets)
+        foreach (string path in files)
         {
             using StreamReader sr = new(path);
             string? line;
